@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Acrostic Poem Maker</title>
+  <style>
+    :root{--accent:#2b7cff;--muted:#666;--bg:#fff}
+    body{font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; margin:0;padding:1rem; background:#f6f8fb;color:#111}
+    .container{max-width:980px;margin:0 auto;background:var(--bg);padding:18px;border-radius:12px;box-shadow:0 6px 20px rgba(20,30,80,0.08)}
+    h1{margin:0 0 8px;font-size:20px}
+    .row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start}
+    .controls{flex:1 1 300px}
+    label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+    input[type=text]{width:100%;padding:8px;border:1px solid #d8dbe6;border-radius:8px;font-size:16px}
+    button{background:var(--accent);color:white;border:none;padding:8px 12px;border-radius:8px;font-weight:600;cursor:pointer}
+    button.ghost{background:transparent;color:var(--accent);border:1px solid #d8e2ff}
+    .letter-list{margin-top:12px}
+    .letter-row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+    .letter-box{width:46px;height:46px;background:#f0f4ff;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px;color:var(--accent)}
+    .descriptor{flex:1}
+    .preview{flex:1 1 400px;border-left:1px dashed #e6e9f2;padding-left:14px}
+    .poster{background:linear-gradient(180deg,#ffffff,#f8fbff);padding:12px;border-radius:10px;min-height:260px}
+    .poster-grid{display:grid;grid-template-columns:72px 1fr;align-items:start;gap:8px 16px}
+    .poster-letter{font-size:44px;font-weight:800;color:var(--accent);display:flex;align-items:center;justify-content:center}
+    .poster-desc{font-size:18px;padding-top:8px}
+    .actions{display:flex;gap:8px;margin-top:14px}
+    small.note{display:block;margin-top:8px;color:var(--muted)}
+    @media(max-width:800px){.row{flex-direction:column}.preview{border-left:none;padding-left:0}}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Acrostic Poem Maker</h1>
+    <p>Create a vertical word (the acrostic), then type a descriptor for each letter. Use <strong>Print</strong> or <strong>Download Poster</strong> to save your acrostic for the hallway.</p>
+
+    <div class="row">
+      <div class="controls">
+        <label for="verticalWord">Type the vertical word</label>
+        <input id="verticalWord" type="text" placeholder="e.g. GRANDPA or LOVE" maxlength="20" />
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <button id="generate">Generate</button>
+          <button class="ghost" id="clear">Clear</button>
+        </div>
+
+        <div class="letter-list" id="letterList" aria-live="polite"></div>
+
+        <div class="actions">
+          <button id="printBtn">Print / Save as PDF</button>
+          <button id="downloadBtn">Download Poster (PNG)</button>
+        </div>
+
+        <small class="note">Tip: Use short descriptor words so the poster stays tidy. Try nouns/adjectives (kinder, playful, kind).</small>
+      </div>
+
+      <div class="preview">
+        <label style="font-size:13px;color:var(--muted)">Live preview</label>
+        <div class="poster" id="poster">
+          <div class="poster-grid" id="posterGrid">
+            <!-- Generated poster content -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const verticalWordInput = document.getElementById('verticalWord');
+    const generateBtn = document.getElementById('generate');
+    const letterList = document.getElementById('letterList');
+    const posterGrid = document.getElementById('posterGrid');
+    const clearBtn = document.getElementById('clear');
+    const printBtn = document.getElementById('printBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+
+    function makeLetterRow(letter, index){
+      const row = document.createElement('div');
+      row.className = 'letter-row';
+      const box = document.createElement('div');
+      box.className = 'letter-box';
+      box.textContent = letter;
+
+      const descWrap = document.createElement('div');
+      descWrap.className = 'descriptor';
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.placeholder = 'Write a word for "' + letter + '"';
+      input.dataset.letterIndex = index;
+      input.addEventListener('input', updatePreview);
+
+      descWrap.appendChild(input);
+      row.appendChild(box);
+      row.appendChild(descWrap);
+      return {row, input, box};
+    }
+
+    function updatePreview(){
+      const inputs = letterList.querySelectorAll('input');
+      // rebuild poster grid
+      posterGrid.innerHTML = '';
+      inputs.forEach((inp, i) =>{
+        const L = inp.previousSibling ? inp.previousSibling.textContent : (document.querySelectorAll('.letter-box')[i] && document.querySelectorAll('.letter-box')[i].textContent) || '';
+        const letterDiv = document.createElement('div');
+        letterDiv.className = 'poster-letter';
+        letterDiv.textContent = L || '';
+        const descDiv = document.createElement('div');
+        descDiv.className = 'poster-desc';
+        descDiv.textContent = inp.value || '...';
+        posterGrid.appendChild(letterDiv);
+        posterGrid.appendChild(descDiv);
+      });
+    }
+
+    function generate(){
+      const word = (verticalWordInput.value||'').trim().toUpperCase();
+      letterList.innerHTML = '';
+      posterGrid.innerHTML = '';
+      if(!word){return}
+      const letters = Array.from(word.replace(/\s+/g,''));
+      letters.forEach((ch, i)=>{
+        const {row, input} = makeLetterRow(ch, i);
+        letterList.appendChild(row);
+      });
+      updatePreview();
+    }
+
+    generateBtn.addEventListener('click', generate);
+    verticalWordInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){generate();}});
+    clearBtn.addEventListener('click', ()=>{verticalWordInput.value='';letterList.innerHTML='';posterGrid.innerHTML='';});
+
+    printBtn.addEventListener('click', ()=>{
+      // Open a print window with the poster content
+      const clone = document.createElement('div');
+      clone.style.padding='24px';
+      clone.innerHTML = posterGrid.parentElement.outerHTML;
+      const w = window.open('','_blank');
+      w.document.write('<html><head><title>Acrostic Poster</title></head><body>'+clone.innerHTML+'</body></html>');
+      w.document.close();
+      setTimeout(()=>w.print(),200);
+    });
+
+    downloadBtn.addEventListener('click', ()=>{
+      // Build a simple SVG poster and download as PNG using blob + canvas
+      const inputs = letterList.querySelectorAll('input');
+      if(inputs.length===0){alert('Generate a word first');return}
+      const padding = 30;
+      const letterSize = 84;
+      const descFont = 28;
+      const width = 800;
+      const height = Math.max(300, inputs.length * (letterSize + 12) + padding*2);
+
+      // construct svg
+      let svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${width}' height='${height}' viewBox='0 0 ${width} ${height}'>`;
+      svg += `<rect width='100%' height='100%' fill='#ffffff'/>`;
+      svg += `<g font-family='Segoe UI, Roboto, Arial' fill='#1f4db7'>`;
+      inputs.forEach((inp,i)=>{
+        const letter = inp.previousSibling ? inp.previousSibling.textContent : '';
+        const desc = escapeXml(inp.value || '...');
+        const y = padding + i*(letterSize+8) + 20;
+        // letter
+        svg += `<text x='70' y='${y}' font-size='${letterSize}' font-weight='800' text-anchor='middle'>${letter}</text>`;
+        // desc
+        svg += `<text x='150' y='${y-10}' font-size='${descFont}' fill='#222' >${desc}</text>`;
+      });
+      svg += `</g></svg>`;
+
+      // convert svg to png
+      const svgBlob = new Blob([svg],{type:'image/svg+xml;charset=utf-8'});
+      const url = URL.createObjectURL(svgBlob);
+      const img = new Image();
+      img.onload = function(){
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,canvas.width,canvas.height);
+        ctx.drawImage(img,0,0);
+        URL.revokeObjectURL(url);
+        canvas.toBlob(function(blob){
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = (verticalWordInput.value||'acrostic').replace(/\s+/g,'_') + '.png';
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+        })
+      }
+      img.onerror = ()=>{ alert('Could not render image for download in this browser. Try Print instead.'); }
+      img.src = url;
+
+      function escapeXml(unsafe){return unsafe.replace(/[&<>"']/g,function(c){switch(c){case '&': return '&amp;';case '<': return '&lt;';case '>': return '&gt;';case '"': return '&quot;';case "'": return '&#039;';}})}
+    });
+
+    // initialize with an example
+    verticalWordInput.value = 'GRANDMA';
+    //generate();
+  </script>
+</body>
+</html>
